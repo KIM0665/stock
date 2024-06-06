@@ -123,13 +123,51 @@ def get_stock_balance():
             send_message(f"{stock['prdt_name']}({stock['pdno']}): {stock['hldg_qty']}주")
             time.sleep(0.1)
     send_message(f"주식 평가 금액: {evaluation[0]['scts_evlu_amt']}원")
-    time.sleep(0.1)
+    # time.sleep(0.1)
     send_message(f"평가 손익 합계: {evaluation[0]['evlu_pfls_smtl_amt']}원")
-    time.sleep(0.1)
+    # time.sleep(0.1)
     send_message(f"총 평가 금액: {evaluation[0]['tot_evlu_amt']}원")
-    time.sleep(0.1)
+    # time.sleep(0.1)
     send_message(f"=================")
     return stock_dict
+
+
+def get_stock_balance_data():
+    """주식 잔고조회"""
+    PATH = "uapi/domestic-stock/v1/trading/inquire-balance"
+    URL = f"{URL_BASE}/{PATH}"
+    headers = {"Content-Type":"application/json", 
+        "authorization":f"Bearer {ACCESS_TOKEN}",
+        "appKey":APP_KEY,
+        "appSecret":APP_SECRET,
+        "tr_id":"TTTC8434R",
+        "custtype":"P",
+    }
+    params = {
+        "CANO": CANO,
+        "ACNT_PRDT_CD": ACNT_PRDT_CD,
+        "AFHR_FLPR_YN": "N",
+        "OFL_YN": "",
+        "INQR_DVSN": "02",
+        "UNPR_DVSN": "01",
+        "FUND_STTL_ICLD_YN": "N",
+        "FNCG_AMT_AUTO_RDPT_YN": "N",
+        "PRCS_DVSN": "01",
+        "CTX_AREA_FK100": "",
+        "CTX_AREA_NK100": ""
+    }
+    res = requests.get(URL, headers=headers, params=params)
+    stock_list = res.json()['output1']
+    evaluation = res.json()['output2']
+    stock_dict = {}
+    for stock in stock_list:
+        if int(stock['hldg_qty']) > 0:
+            stock_dict[stock['pdno']] = stock['hldg_qty']
+
+    return stock_dict
+
+
+
 
 def get_balance():
     """현금 잔고조회"""
@@ -186,13 +224,13 @@ def buy(code="005930", qty="1"):
 
 
 
-def automatic_sell_threshold(code):
-    """일정 금액에 도달하면 자동으로 매도"""
-    result = sell(code,qty)
-    if result:
-        return True
-    else: 
-        return False
+# def automatic_sell_threshold(code):
+#     """일정 금액에 도달하면 자동으로 매도"""
+#     result = sell(code,qty)
+#     if result:
+#         return True
+#     else: 
+#         return False
 
 
 
@@ -229,13 +267,14 @@ try:
     ACCESS_TOKEN = get_access_token()
 
     symbol_list =  my_code.fetch_company_codes()[:100]
-    bought_list = [] # 매수 완료된 종목 리스트
+    bought_prices = {}  # 매수한 종목의 가격을 저장하는 딕셔너리
+    bought_list = []  # 매수한 종목의 코드를 저장하는 리스트
     total_cash = get_balance() # 보유 현금 조회
     stock_dict = get_stock_balance() # 보유 주식 조회
     for sym in stock_dict.keys():
         bought_list.append(sym)
-    target_buy_count = 3 # 매수할 종목 수
-    buy_percent = 0.33 # 종목당 매수 금액 비율
+    target_buy_count = 1 # 매수할 종목 수
+    buy_percent = 0.04 # 종목당 매수 금액 비율
     buy_amount = total_cash * buy_percent  # 종목별 주문 금액 계산
     soldout = False
 
@@ -259,6 +298,8 @@ try:
         if t_start < t_now < t_sell :  # AM 09:05 ~ PM 03:15 : 매수
             
             for sym in symbol_list:
+                print("bought_prices"+str(bought_prices))
+                print("bought_list"+str(bought_list))
                 if len(bought_list) < target_buy_count:
                     if sym in bought_list:
                         continue
@@ -266,6 +307,8 @@ try:
                     current_price = get_current_price(sym)                    
                     stock_5day = my_code.fetch_stock_price_5day(sym)
                     stock_20day = my_code.fetch_stock_price_20day(sym)
+                    print("매수문 ")
+                      
                     if target_price < current_price and stock_5day < current_price and stock_5day > stock_20day:
                         buy_qty = 0  # 매수할 수량 초기화
                         buy_qty = int(buy_amount // current_price)
@@ -275,30 +318,37 @@ try:
                             if result:
                                 soldout = False
                                 bought_list.append(sym)
-                                bought_list[sym] = {
-                                    'buy_price': current_price,  # 현재 가격을 구매 가격으로 사용할 수 있습니다.
-                                    }
+                                bought_prices[sym] = current_price  # 현재 가격을 구매 가격으로 사용할 수 있습니다.
+                                print(f"bought_prices{sym}"+str(bought_prices[sym]))
                                 get_stock_balance()
-                    time.sleep(1)
+                    if soldout == False :
+                        stock_dict = get_stock_balance_data()
+                        print("stock_dict"+str(stock_dict))
 
-                    for sym, qty in stock_dict.items():
-                        current_price = bought_list[sym]
-                        sell_loss_price = current_price*0.97
-                        sell_profit_price = current_price*1.02  
-                        if current_price >= sell_profit_price:
-                            result01 = automatic_sell_threshold(sym,qty)
-                            if result01:
+                        for sym, qty in stock_dict.items():
+                            print("테스트1")
+                            print("테스트 1 가격"+str(bought_prices[sym]))              
+                            bought_price = float(bought_prices[sym])
+                            print("테스트2")         
+                            sell_loss_price = float(bought_price*0.98)
+                            print("테스트3")         
+                            sell_profit_price = float(bought_price*1.01)  
+                            if bought_prices > sell_profit_price:
+                                sell(sym, qty)                    
                                 send_message(f"{sym} 종목의 가격이 2% 상승하여 익절합니다.")
-                            else:
-                                send_message(f"{sym} 종목의 가격이 상승했으나 매도에 실패하였습니다.")
-                        if current_price <= sell_loss_price:
-                            result02 = automatic_sell_threshold(sym,qty)
-                            if result02:
+                                soldout = True
+                                del bought_list[sym]
+                                bought_list.remove(sym)
+                            if bought_prices < sell_loss_price:
+                                sell(sym, qty)  
                                 send_message(f"{sym} 종목의 가격이 3% 하락하여 손절합니다.")
+                                soldout = True
+                                del bought_list[sym]
+                                bought_list.remove(sym)
                             else:
-                                send_message(f"{sym} 종목의 가격이 하락했으나 매도에 실패하였습니다.")
+                                send_message(f"{sym}의 매수 기록이 없습니다.")
 
-            time.sleep(1)
+                time.sleep(1)
             if t_now.minute == 30 and t_now.second <= 5: 
                 get_stock_balance()
                 time.sleep(5)
