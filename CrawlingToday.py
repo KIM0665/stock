@@ -21,7 +21,7 @@ def main():
     # 데이터베이스 연결
     my_code = Code(host="localhost", user="root", password="1234", database="stock")
     my_code.connect_to_database()
-    symbol_list = my_code.fetch_company_codes()
+    symbol_list = my_code.company_code()
 
     # 각 주식 코드에 대해 최신 데이터를 가져와 데이터베이스에 삽입
     for stock_code in symbol_list:
@@ -32,6 +32,4 @@ def main():
             my_code.connect_to_database()
             my_code.insert_stock_price_today(latest_data,stock_code)
             stock_data = get_stock_data(stock_code, page)
-
-if __name__ == "__main__":
-    main()
+main()

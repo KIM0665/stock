@@ -30,18 +30,49 @@ class Code:
             # 커서 생성
             with self.conn.cursor() as c:
                 # 쿼리 실행
-                c.execute("SELECT * FROM stock.stock_price WHERE stock_date = (SELECT MAX(stock_date) FROM stock.stock_price) ORDER BY stock_volume DESC")
+                c.execute("SELECT stock_code_no FROM stock.stock_price WHERE stock_date = (SELECT MAX(stock_date) FROM stock.stock_price) ORDER BY stock_volume DESC LIMIT 150 OFFSET 49 ")
 
                 result = c.fetchall()
                 symbol_list = []
                 
                 # 결과를 리스트에 담기
                 for row in result:
-                    symbol_list.append(row[1])
+                    symbol_list.append(row[0])
             return symbol_list
         except pymysql.MySQLError as e:
             print(f"Database error: {e}")
             return []
+        
+
+        
+    def company_code(self):
+        if self.conn is None:
+            print("No database connection.")
+            return []
+        
+        try:
+            # 커서 생성
+            with self.conn.cursor() as c:
+                # 쿼리 실행
+                c.execute("SELECT stock_code_no FROM stock_code")
+
+                result = c.fetchall()
+                symbol_list = []
+                
+                # 결과를 리스트에 담기
+                for row in result:
+                    symbol_list.append(row[0])
+            return symbol_list
+        except pymysql.MySQLError as e:
+            print(f"Database error: {e}")
+            return []
+        
+
+
+        
+
+
+
 
 
             #  데이터 입력관련
