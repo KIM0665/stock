@@ -30,6 +30,7 @@ class Code:
         try:
             # 커서 생성
             with self.conn.cursor() as c:
+                # target_date = datetime.strptime(target_date, "%Y-%m-%d")
                 # 쿼리 실행
                 c.execute("SELECT * FROM stock.stock_price WHERE stock_date = %s ORDER BY stock_volume DESC", (target_date))
 
