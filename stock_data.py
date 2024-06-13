@@ -30,7 +30,7 @@ class Code:
             # 커서 생성
             with self.conn.cursor() as c:
                 # 쿼리 실행
-                c.execute("SELECT stock_code_no FROM stock.stock_price WHERE stock_date = (SELECT MAX(stock_date) FROM stock.stock_price) ORDER BY stock_volume DESC LIMIT 150 OFFSET 49 ")
+                c.execute("SELECT stock_code_no FROM stock.stock_price WHERE stock_date = (SELECT MAX(stock_date) FROM stock.stock_price) ORDER BY stock_volume DESC LIMIT 100 OFFSET 40 ")
 
                 result = c.fetchall()
                 symbol_list = []

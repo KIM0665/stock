@@ -190,7 +190,7 @@ def get_balance():
         "OVRS_ICLD_YN": "Y"
     }
     res = requests.get(URL, headers=headers, params=params)
-    cash = res.json()['output']['ord_psbl_cash']
+    cash = res.json()['output']['max_buy_amt']
     send_message(f"주문 가능 현금 잔고: {cash}원")
     return int(cash)
 
@@ -266,7 +266,7 @@ def sell(code="005930", qty="1"):
 try:
     ACCESS_TOKEN = get_access_token()
 
-    symbol_list =  my_code.company_code()
+    symbol_list =  my_code.fetch_company_codes()
     bought_prices = {}  # 매수한 종목의 가격을 저장하는 딕셔너리
     bought_list = []  # 매수한 종목의 코드를 저장하는 리스트
     total_cash = get_balance() # 보유 현금 조회
@@ -274,7 +274,7 @@ try:
     for sym in stock_dict.keys():
         bought_list.append(sym)
     target_buy_count = 5 # 매수할 종목 수
-    buy_percent = 0.1 # 종목당 매수 금액 비율
+    buy_percent = 0.2 # 종목당 매수 금액 비율
     buy_amount = total_cash * buy_percent  # 종목별 주문 금액 계산
     soldout = False
 
@@ -289,18 +289,20 @@ try:
         if today == 5 or today == 6:  # 토요일이나 일요일이면 자동 종료
             send_message("주말이므로 프로그램을 종료합니다.")
             break
-        # if t_9 < t_now < t_start and soldout == False: # 잔여 수량 매도
-        #     for sym, qty in stock_dict.items():
-        #         sell(sym, qty)
-        #     soldout == True
-        #     bought_list = []
-        #     stock_dict = get_stock_balance()
-        if t_start < t_now < t_sell :  # AM 09:05 ~ PM 03:15 : 매수
+        if t_9 < t_now < t_start and soldout == False: # 잔여 수량 매도
+            send_message("===잔여 수량 매도===")
+            for sym, qty in stock_dict.items():
+                sell(sym, qty)
+            soldout == True
+            bought_list = []
             stock_dict = get_stock_balance()
             
+        if t_start < t_now < t_sell :  # AM 09:05 ~ PM 03:15 : 매수
+            stock_dict = get_stock_balance()
+            send_message("===매수를 시작===")
+
+            
             for sym in symbol_list:
-                print("bought_prices"+str(bought_prices))
-                print("bought_list"+str(bought_list))
                 if len(bought_list) < target_buy_count:
                     if sym in bought_list:
                         continue
@@ -350,7 +352,7 @@ try:
                     #             send_message(f"{sym}의 매수 기록이 없습니다.")
 
                 time.sleep(1)
-            if t_now.minute == 30 and t_now.second <= 5: 
+            if t_now.minute == 30 and t_now.second == 5: 
                 get_stock_balance()
                 time.sleep(5)
         if t_sell < t_now < t_exit:  # PM 03:15 ~ PM 03:20 : 일괄 매도
